@@ -11,7 +11,7 @@ __all__ = ['task', 'yield_from']
 import greenlet
 
 import asyncio
-from asyncio import unix_events, tasks, futures
+from asyncio import futures
 
 
 class _LoopGreenlet(greenlet.greenlet):
