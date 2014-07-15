@@ -62,7 +62,7 @@ class socket:
     @_copydoc
     def setblocking(self, flag):
         if flag:
-            raise error('greenio.socket does not support blocking mode')
+            raise error('grenado.socket does not support blocking mode')
 
     @_copydoc
     def recv(self, nbytes):

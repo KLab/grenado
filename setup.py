@@ -2,19 +2,16 @@ from setuptools import setup
 
 
 extra = {}
-f = open('README', 'r')
-try:
+with open('README', 'r') as f:
     extra['long_description'] = f.read()
-finally:
-    f.close()
 
 
 setup(
-    name='greenio',
-    version='0.5.0',
-    description="Greenlets for asyncio (PEP 3156).",
-    url='https://github.com/1st1/greenio/',
+    name='grenado',
+    version='0.0.1',
+    description="Greenlets for Tornado",
+    url='https://github.com/KLab/grenado/',
     license='Apache 2.0',
-    packages=['greenio'],
+    packages=['grenado'],
     install_requires=['greenlet'],
 )
