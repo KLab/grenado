@@ -2,12 +2,15 @@
 # Copyright (c) 2013 Yury Selivanov
 # License: Apache 2.0
 ##
-"""Greensocket (non-blocking) for asyncio.
+"""Greensocket (non-blocking) for Tornado.
 
-Use ``greenio.socket`` in the same way as you would use stdlib's
-``socket.socket`` in ``greenio.task`` tasks or coroutines invoked
+Use ``grenado.socket`` in the same way as you would use stdlib's
+``socket.socket`` in ``grenado.task`` tasks or coroutines invoked
 from them.
 """
+import tornado.ioloop
+from tornado.iostream import IOStream
+import greenlet
 import asyncio
 from socket import error, SOCK_STREAM
 from socket import socket as std_socket
@@ -16,7 +19,10 @@ from . import yield_from
 from . import GreenUnixSelectorLoop
 
 
-class socket:
+def _wait_callback(func, args, kwargs):
+
+
+class socket(object):
 
     def __init__(self, *args, _from_sock=None, **kwargs):
         if _from_sock:
@@ -24,9 +30,9 @@ class socket:
         else:
             self._sock = std_socket(*args, **kwargs)
         self._sock.setblocking(False)
-        self._loop = asyncio.get_event_loop()
-        assert isinstance(self._loop, GreenUnixSelectorLoop), \
-            'GreenUnixSelectorLoop event loop is required'
+        self._loop = tornado.ioloop.IOLoop.current()
+        #assert isinstance(self._loop, GreenUnixSelectorLoop), \
+        #    'GreenUnixSelectorLoop event loop is required'
 
     @classmethod
     def from_socket(cls, sock):
@@ -95,13 +101,16 @@ class socket:
         sock, addr = fut.result()
         return self.__class__.from_socket(sock), addr
 
+    __file = None
+
     @_copydoc
     def makefile(self, mode, *args, **kwargs):
-        if mode == 'rb':
-            return ReadFile(self._loop, self._sock)
-        elif mode == 'wb':
-            return WriteFile(self._loop, self._sock)
-        raise NotImplementedError
+        if mode not in ('rb', 'wb'):
+            raise NotImplementedError
+        if self.__file is None:
+            stream = IOStream(self._sock)
+            self.__file = StreamFile(stream)
+        return self.__file
 
     bind = _proxy('bind')
     listen = _proxy('listen')
@@ -118,7 +127,14 @@ class socket:
     del _copydoc, _proxy
 
 
-class ReadFile:
+class StreamFile(object):
+    def __init__(self, stream):
+        self._stream = stream
+
+    def read(self, size):
+        fut = self._stream.read_bytes(size)
+
+class ReadFile(object):
 
     def __init__(self, loop, sock):
         self._loop = loop
@@ -132,25 +148,23 @@ class ReadFile:
                 del self._buf[:size]
                 return data
 
-            fut = self._loop.sock_recv(self._sock, size - len(self._buf))
-            yield_from(fut)
-            res = fut.result()
+            gl = greenlet.getcurrent()
+            while 1:
+                try:
+                    res = self._sock.read(max(size, 8000))
+                    break
+                except socket.error as e:
+                    if e.errno in _ERRNO_WOULDBLOCK:
+                        def handler(fd, event):
+                            gl.switch()
+                        self._loop.add_handler(self._sock.fileno(), handler, self._loop.READ)
             self._buf.extend(res)
-
-            if size <= len(self._buf):
-                data = self._buf[:size]
-                del self._buf[:size]
-                return data
-            else:
-                data = self._buf[:]
-                del self._buf[:]
-                return data
 
     def close(self):
         pass
 
 
-class WriteFile:
+class WriteFile(object):
 
     def __init__(self, loop, sock):
         self._loop = loop

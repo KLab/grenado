@@ -1,9 +1,10 @@
 ##
 # Copyright (c) 2013 Yury Selivanov
+# Copyright (c) 2014 INADA Naoki
 # License: Apache 2.0
 ##
 
-"""greenio package allows to compose greenlets and asyncio coroutines."""
+"""grenado package allows to compose greenlets and asyncio coroutines."""
 
 __all__ = ['task', 'yield_from']
 
